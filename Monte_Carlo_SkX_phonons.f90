@@ -31,7 +31,7 @@ PROGRAM Metrolopis
 !   Quiero ahora que J1 sea un vector de 4xNs con un numero random dJ (1 dJ para c/vecino). Lo mismo para DMI
     REAL*8 :: Ja(Ns,4), Idumv(NLines)
     REAL*8 :: DMIa(Ns,4)
-    REAL(8) :: Hu                           ! Hamiltonian term
+    REAL(8) :: Hu,Hup                           ! Hamiltonian term
     REAL(8), DIMENSION(Ns, 2) :: u  ! u_i for each site, with 2 components (x, y)
 
 
@@ -166,7 +166,7 @@ PROGRAM Metrolopis
                                   (S(i, 1) * S(j, 2) - S(i, 2) * S(j, 1))**2)
 
                         END DO
-                    END DO
+                     END DO
 
 
                     DO K=1,Neql
@@ -189,7 +189,63 @@ PROGRAM Metrolopis
                             !New spin ====
                             !===============
                             CALL NewSpin(M,Sp,deltaS)
-                            dE=dot_product(Sp(:)-S(:,M),H(:))-A2*(Sp(3)**2-S(3,M)**2)
+			    ! Loop over all sites i to calculate Hu', (Hu evaluated in Sp)
+			    DO i = 1, Ns
+				! Loop over neighbors of site i and calculate vector u(Sp')
+				! X-component of u_i
+				u(i, 1) = (-J * alpha / kappa) * (
+				             Sp(1, i) * Sp(1, NN(1, i)) + Sp(2, i) * Sp(2, NN(1, i)) + Sp(3, i) * Sp(3, NN(1, i)) &  ! First neighbor (NN1) with (0,1) direction
+				          ) + (+J * alpha / kappa) * (
+				             Sp(1, i) * Sp(1, NN(3, i)) + Sp(2, i) * Sp(2, NN(3, i)) + Sp(3, i) * Sp(3, NN(3, i)) &  ! Third neighbor (NN3) with (1,0) direction
+				          ) + (-D * beta / kappa) * (
+				             Sp(2, i) * Sp(3, NN(1, i)) - Sp(2, NN(1, i)) * Sp(3, i) + Sp(1, NN(1, i)) * Sp(3, i) - Sp(1, i) * Sp(3, NN(1, i)) &  ! First neighbor term with DMI
+				          ) + (+D * beta / kappa) * (
+				             Sp(2, i) * Sp(3, NN(3, i)) - Sp(2, NN(3, i)) * Sp(3, i) + Sp(1, NN(3, i)) * Sp(3, i) - Sp(1, i) * Sp(3, NN(3, i)) &  ! Third neighbor term with DMI
+				          )
+				
+				! Y-component of u_i
+				u(i, 2) = (-J * alpha / kappa) * (
+				             Sp(1, i) * Sp(1, NN(2, i)) + Sp(2, i) * Sp(2, NN(2, i)) + Sp(3, i) * Sp(3, NN(2, i)) &  ! Second neighbor (NN2) with (0,1) direction
+				          ) + (+J * alpha / kappa) * (
+				             Sp(1, i) * Sp(1, NN(4, i)) + Sp(2, i) * Sp(2, NN(4, i)) + Sp(3, i) * Sp(3, NN(4, i)) &  ! Fourth neighbor (NN4) with (0,-1) direction
+				          ) + (-D * beta / kappa) * (
+				             Sp(2, i) * Sp(3, NN(2, i)) - Sp(2, NN(2, i)) * Sp(3, i) + Sp(1, NN(2, i)) * Sp(3, i) - Sp(1, i) * Sp(3, NN(2, i)) &  ! Second neighbor term with DMI
+				          ) + (+D * beta / kappa) * (
+				             Sp(2, i) * Sp(3, NN(4, i)) - Sp(2, NN(4, i)) * Sp(3, i) + Sp(1, NN(4, i)) * Sp(3, i) - Sp(1, i) * Sp(3, NN(4, i)) &  ! Fourth neighbor term with DMI
+				          )
+
+				DO M = 1, 4
+				    j = NN(M, i)  ! Get the neighbor site j
+	
+				    ! Compute u_i - u_j in the desired format
+				    ! First compute the differences in x and y components
+				    u_diff_x = u(i, 1) - u(j, 1)
+				    u_diff_y = u(i, 2) - u(j, 2)
+	
+				   ! First term: J alpha e_ij . (u_i - u_j) (Sp_i . Sp_j)
+					Hup = Hup + (-J * alpha / kappa) * (Sp(i, 1) * Sp(j, 1) + Sp(i, 2) * Sp(j, 2) + Sp(i, 3) * Sp(j, 3)) * &
+					     (e(M, 1) * u_diff_x + e(M, 2) * u_diff_y)
+					
+				   ! Second term: beta e_ij . (u_i - u_j) (D . (Sp_i x Sp_j))
+					Hup = Hup + (-J * alpha * beta / kappa) * (Sp(i, 1) * Sp(j, 1) + Sp(i, 2) * Sp(j, 2) + Sp(i, 3) * Sp(j, 3)) * &
+					     (D * ((Sp(i, 2) * Sp(j, 3) - Sp(i, 3) * Sp(j, 2)) + &
+						   (Sp(i, 3) * Sp(j, 1) - Sp(i, 1) * Sp(j, 3)) + &
+						   (Sp(i, 1) * Sp(j, 2) - Sp(i, 2) * Sp(j, 1)))) * &
+					     (e(M, 1) * u_diff_x + e(M, 2) * u_diff_y)
+					
+				   ! Third term: (D**2 * beta**2) part (similar to previous form)
+					Hup = Hup + (-1.0d0 / 2.0d0 * kappa) * (D**2 * beta**2) * &
+					     ((Sp(i, 2) * Sp(j, 3) - Sp(i, 3) * Sp(j, 2))**2 + &
+					      (Sp(i, 1) * Sp(j, 3) - Sp(i, 3) * Sp(j, 1))**2 + &
+					      (Sp(i, 1) * Sp(j, 2) - Sp(i, 2) * Sp(j, 1))**2)
+
+	
+				END DO
+			     END DO	
+				
+	   
+                            dE=dot_product(Sp(:)-S(:,M),H(:))    - (Hup-Hu
+			    )
                             IF(dE.le.0.0)THEN
                                 S(:,M)=Sp(:)
                             ELSE
