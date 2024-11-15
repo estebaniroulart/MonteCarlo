@@ -23,7 +23,7 @@ PROGRAM Metrolopis
     INTEGER :: I,J,K,KK,jh,I2,I3,jt
     INTEGER :: Idum,Iter,It,Ih,Kx,Ky,L,M,M1,qx,qy,Nover, Iloop
     REAL*8 :: T,hz,aux,auxx,q,r
-    REAL*8 :: J1,E0,DM1,A2,Jm,Dm
+    REAL*8 :: J1,E0,DM1,A2,alpha,beta,kappa
     REAL*8 :: deltaS,wB,dE,z,p,H2,Spr,Haux(3),H(3),Sp(3)
 
     REAL*8 :: Etot,Eav,E2av,C,Stot,S2av,Mag,Mav,M2av,ChiM,Chi,ChiAv,Chirtot,Chir1,Chir2
@@ -68,12 +68,11 @@ PROGRAM Metrolopis
         CALL geometryS()
         !-----------------------------------------
         J1=-1.0d0
-        !Jm=0.25d0
-        Dm=Jm
         DM1=1.0d0
         A2=0.1d0
+	alpha=0.1
+ 	beta=0.1
         !hz=0.5d0
-      	!dJx=1/Jm
         !-----------------------------------------
         ! loop in magnetic field
     
@@ -114,9 +113,9 @@ PROGRAM Metrolopis
                     !----------------------------------------
                     DO i = 1, Ns
                         ! X-component of u_i
-                        u(i, 1) = (-J * gamma / kappa) * (
+                        u(i, 1) = (-J * alpha / kappa) * (
                              S(1,i) * S(1,NN(1,i)) + S(2,i) * S(2,NN(1,i)) + S(3,i) * S(3,NN(1,i))   &  ! First neighbor (NN1) with (0,1) direction
-                            ) + (+J * gamma / kappa) * (
+                            ) + (+J * alpha / kappa) * (
                              S(1,i) * S(1,NN(3,i)) + S(2,i) * S(2,NN(3,i)) + S(3,i) * S(3,NN(3,i))   &  ! Third neighbor (NN3) with (1,0) direction
                             ) + (-D * beta / kappa) * (
                              S(2,i) * S(3,NN(1,i)) - S(2,NN(1,i)) * S(3,i) + S(1,NN(1,i)) * S(3,i) - S(1,i) * S(3,NN(1,i))  &  ! First neighbor term with DMI
@@ -125,9 +124,9 @@ PROGRAM Metrolopis
                             )
 
                         ! Y-component of u_i
-                        u(i, 2) = (-J * gamma / kappa) * (
+                        u(i, 2) = (-J * alpha / kappa) * (
                              S(1,i) * S(1,NN(2,i)) + S(2,i) * S(2,NN(2,i)) + S(3,i) * S(3,NN(2,i))   &  ! Second neighbor (NN2) with (0,1) direction
-                            ) + (+J * gamma / kappa) * (
+                            ) + (+J * alpha / kappa) * (
                              S(1,i) * S(1,NN(4,i)) + S(2,i) * S(2,NN(4,i)) + S(3,i) * S(3,NN(4,i))   &  ! Fourth neighbor (NN4) with (0,-1) direction
                             ) + (-D * beta / kappa) * (
                              S(2,i) * S(3,NN(2,i)) - S(2,NN(2,i)) * S(3,i) + S(1,NN(2,i)) * S(3,i) - S(1,i) * S(3,NN(2,i))  &  ! Second neighbor term with DMI
@@ -149,12 +148,12 @@ PROGRAM Metrolopis
                             u_diff_x = u(i, 1) - u(j, 1)
                             u_diff_y = u(i, 2) - u(j, 2)
 
-                            ! First term: J gamma e_ij . (u_i - u_j) (S_i . S_j)
-                            Hu = Hu + (-J * gamma / kappa) * (S(i, 1) * S(j, 1) + S(i, 2) * S(j, 2) + S(i, 3) * S(j, 3)) * &
+                            ! First term: J alpha e_ij . (u_i - u_j) (S_i . S_j)
+                            Hu = Hu + (-J * alpha / kappa) * (S(i, 1) * S(j, 1) + S(i, 2) * S(j, 2) + S(i, 3) * S(j, 3)) * &
                                  (e(M, 1) * u_diff_x + e(M, 2) * u_diff_y)
 
                             ! Second term: beta e_ij . (u_i - u_j) (D . (S_i x S_j))
-                            Hu = Hu + (-J * gamma * beta / kappa) * (S(i, 1) * S(j, 1) + S(i, 2) * S(j, 2) + S(i, 3) * S(j, 3)) * &
+                            Hu = Hu + (-J * alpha * beta / kappa) * (S(i, 1) * S(j, 1) + S(i, 2) * S(j, 2) + S(i, 3) * S(j, 3)) * &
                                  (D * ((S(i, 2) * S(j, 3) - S(i, 3) * S(j, 2)) + &
                                        (S(i, 3) * S(j, 1) - S(i, 1) * S(j, 3)) + &
                                        (S(i, 1) * S(j, 2) - S(i, 2) * S(j, 1)))) * &
@@ -173,8 +172,8 @@ PROGRAM Metrolopis
                     DO K=1,Neql
                         DO L=1,Ns
                             !Potential energy term
-                            !H=(-1/2 * kappa) * (J**2 * gamma**2) * (S(1, M) * S(1, k) + S(2, M) * S(2, k) + S(3, M) * S(3, k))**2 + &
-                            !(-J * gamma * beta / kappa) * (S(1, M) * S(1, k) + S(2, M) * S(2, k) + S(3, M) * S(3, k)) * &
+                            !H=(-1/2 * kappa) * (J**2 * alpha**2) * (S(1, M) * S(1, k) + S(2, M) * S(2, k) + S(3, M) * S(3, k))**2 + &
+                            !(-J * alpha * beta / kappa) * (S(1, M) * S(1, k) + S(2, M) * S(2, k) + S(3, M) * S(3, k)) * &
                             !    (DMI(1) * (S(2, M) * S(3, l) - S(2, l) * S(3, M)) + &
                             !     DMI(2) * (S(1, l) * S(3, M) - S(1, M) * S(3, l)) + &
                             !     DMI(3) * (S(1, M) * S(2, l) - S(1, l) * S(2, M))) + &
