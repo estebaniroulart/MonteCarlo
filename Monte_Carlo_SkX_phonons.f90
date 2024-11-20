@@ -31,6 +31,8 @@ PROGRAM Metrolopis
     REAL*8 :: Idumv(NLines)
     REAL(8) :: Hu,Hup                           ! Hamiltonian terms
     REAL(8), DIMENSION(Ns, 2) :: u  ! u_i for each site, with 2 components (x, y)
+    ! Declare vectors for u(i) and u(j) (2D)
+    REAL, DIMENSION(2) :: u_i, u_j, u_diff
 
 
     CHARACTER(len=300):: NameFile1,NameFile2,NameFile3,NameFile4
@@ -141,30 +143,24 @@ PROGRAM Metrolopis
 			    ! First neighbor (NN1)
 			    j = NN(1, i)
 			    Hu = Hu + J * alpha * u(i, 1) * (S(1, i) * S(1, j) + S(2, i) * S(2, j) + S(3, i) * S(3, j)) &
-			             + beta * u(i, 1) * (D(1) * (S(2, i) * S(3, j) - S(3, i) * S(2, j)) + &
-			                                 D(2) * (S(3, i) * S(1, j) - S(1, i) * S(3, j)) + &
-			                                 D(3) * (S(1, i) * S(2, j) - S(2, i) * S(1, j)))
+			             + beta*D * u(i, 1) * ( (S(2, i) * S(3, j) - S(3, i) * S(2, j)) + &
+			                                 (S(3, i) * S(1, j) - S(1, i) * S(3, j)) )
 			
 			    ! Second neighbor (NN2)
 			    j = NN(2, i)
 			    Hu = Hu + J * alpha * u(i, 2) * (S(1, i) * S(1, j) + S(2, i) * S(2, j) + S(3, i) * S(3, j)) &
-			             + beta * u(i, 2) * (D(1) * (S(2, i) * S(3, j) - S(3, i) * S(2, j)) + &
-			                                 D(2) * (S(3, i) * S(1, j) - S(1, i) * S(3, j)) + &
-			                                 D(3) * (S(1, i) * S(2, j) - S(2, i) * S(1, j)))
-			
+			             + beta*D * u(i, 2) * ( (S(2, i) * S(3, j) - S(3, i) * S(2, j)) + &
+			                                 (S(3, i) * S(1, j) - S(1, i) * S(3, j)) )
 			    ! Third neighbor (NN3)
 			    j = NN(3, i)
 			    Hu = Hu - J * alpha * u(i, 1) * (S(1, i) * S(1, j) + S(2, i) * S(2, j) + S(3, i) * S(3, j)) &
-			             - beta * u(i, 1) * (D(1) * (S(2, i) * S(3, j) - S(3, i) * S(2, j)) + &
-			                                 D(2) * (S(3, i) * S(1, j) - S(1, i) * S(3, j)) + &
-			                                 D(3) * (S(1, i) * S(2, j) - S(2, i) * S(1, j)))
-			
+			             - beta*D * u(i, 1) * ( (S(2, i) * S(3, j) - S(3, i) * S(2, j)) + &
+			                                 (S(3, i) * S(1, j) - S(1, i) * S(3, j)) )
 			    ! Fourth neighbor (NN4)
 			    j = NN(4, i)
 			    Hu = Hu - J * alpha * u(i, 2) * (S(1, i) * S(1, j) + S(2, i) * S(2, j) + S(3, i) * S(3, j)) &
-			             - beta * u(i, 2) * (D(1) * (S(2, i) * S(3, j) - S(3, i) * S(2, j)) + &
-			                                 D(2) * (S(3, i) * S(1, j) - S(1, i) * S(3, j)) + &
-			                                 D(3) * (S(1, i) * S(2, j) - S(2, i) * S(1, j)))
+			             - beta*D * u(i, 2) * ( (S(2, i) * S(3, j) - S(3, i) * S(2, j)) + &
+			                                 (S(3, i) * S(1, j) - S(1, i) * S(3, j)) )
 			
 			    ! Elastic energy term
 			    Hu = Hu + 0.5d0 * kappa * (u(i, 1)**2 + u(i, 2)**2)
@@ -218,38 +214,44 @@ PROGRAM Metrolopis
 				             Sp(2, i) * Sp(3, NN(4, i)) - Sp(2, NN(4, i)) * Sp(3, i) + Sp(1, NN(4, i)) * Sp(3, i) - Sp(1, i) * Sp(3, NN(4, i)) &  ! Fourth neighbor term with DMI
 				          )
 
-				DO M = 1, 4
-				    j = NN(M, i)  ! Get the neighbor site j
-	
+		
 				    ! Compute u_i - u_j in the desired format
 				    ! First compute the differences in x and y components
 				    u_diff_x = u(i, 1) - u(j, 1)
 				    u_diff_y = u(i, 2) - u(j, 2)
 	
-				   ! First term: J alpha e_ij . (u_i - u_j) (Sp_i . Sp_j)
-					Hup = Hup + (-J * alpha / kappa) * (Sp(i, 1) * Sp(j, 1) + Sp(i, 2) * Sp(j, 2) + Sp(i, 3) * Sp(j, 3)) * &
-					     (e(M, 1) * u_diff_x + e(M, 2) * u_diff_y)
-					
-				   ! Second term: beta e_ij . (u_i - u_j) (D . (Sp_i x Sp_j))
-					Hup = Hup + (-J * alpha * beta / kappa) * (Sp(i, 1) * Sp(j, 1) + Sp(i, 2) * Sp(j, 2) + Sp(i, 3) * Sp(j, 3)) * &
-					     (D * ((Sp(i, 2) * Sp(j, 3) - Sp(i, 3) * Sp(j, 2)) + &
-						   (Sp(i, 3) * Sp(j, 1) - Sp(i, 1) * Sp(j, 3)) + &
-						   (Sp(i, 1) * Sp(j, 2) - Sp(i, 2) * Sp(j, 1)))) * &
-					     (e(M, 1) * u_diff_x + e(M, 2) * u_diff_y)
-					
-				   ! Third term: (D**2 * beta**2) part (similar to previous form)
-					Hup = Hup + (-1.0d0 / 2.0d0 * kappa) * (D**2 * beta**2) * &
-					     ((Sp(i, 2) * Sp(j, 3) - Sp(i, 3) * Sp(j, 2))**2 + &
-					      (Sp(i, 1) * Sp(j, 3) - Sp(i, 3) * Sp(j, 1))**2 + &
-					      (Sp(i, 1) * Sp(j, 2) - Sp(i, 2) * Sp(j, 1))**2)
-
-	
-				END DO
+				   ! First neighbor (NN1)
+				    j = NN(1, i)
+				    Hup = Hup + J * alpha * u(i, 1) * (Sp(1, i) * Sp(1, j) + Sp(2, i) * Sp(2, j) + Sp(3, i) * Sp(3, j)) &
+					     + beta * D * u(i, 1) * ( (Sp(2, i) * Sp(3, j) - Sp(3, i) * Sp(2, j)) + &
+								       (Sp(3, i) * Sp(1, j) - Sp(1, i) * Sp(3, j)) )
+				
+				    ! Second neighbor (NN2)
+				    j = NN(2, i)
+				    Hup = Hup + J * alpha * u(i, 2) * (Sp(1, i) * Sp(1, j) + Sp(2, i) * Sp(2, j) + Sp(3, i) * Sp(3, j)) &
+					     + beta * D * u(i, 2) * ( (Sp(2, i) * Sp(3, j) - Sp(3, i) * Sp(2, j)) + &
+								       (Sp(3, i) * Sp(1, j) - Sp(1, i) * Sp(3, j)) )
+				
+				    ! Third neighbor (NN3)
+				    j = NN(3, i)
+				    Hup = Hup - J * alpha * u(i, 1) * (Sp(1, i) * Sp(1, j) + Sp(2, i) * Sp(2, j) + Sp(3, i) * Sp(3, j)) &
+					     - beta * D * u(i, 1) * ( (Sp(2, i) * Sp(3, j) - Sp(3, i) * Sp(2, j)) + &
+								       (Sp(3, i) * Sp(1, j) - Sp(1, i) * Sp(3, j)) )
+				
+				    ! Fourth neighbor (NN4)
+				    j = NN(4, i)
+				    Hup = Hup - J * alpha * u(i, 2) * (Sp(1, i) * Sp(1, j) + Sp(2, i) * Sp(2, j) + Sp(3, i) * Sp(3, j)) &
+					     - beta * D * u(i, 2) * ( (Sp(2, i) * Sp(3, j) - Sp(3, i) * Sp(2, j)) + &
+								       (Sp(3, i) * Sp(1, j) - Sp(1, i) * Sp(3, j)) )
+				
+				    ! Elastic energy term
+				    Hup = Hup + 0.5d0 * kappa * (u(i, 1)**2 + u(i, 2)**2)
+		
 			     END DO	
 				
 	   
-                            dE=dot_product(Sp(:)-S(:,M),H(:))    - (Hup-Hu
-			    )
+                            dE=dot_product(Sp(:)-S(:,M),H(:))    - (Hup-Hu)
+			    
                             IF(dE.le.0.0)THEN
                                 S(:,M)=Sp(:)
                             ELSE
