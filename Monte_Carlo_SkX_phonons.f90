@@ -134,6 +134,7 @@ PROGRAM Metrolopis
                              S(2,i) * S(3,NN(4,i)) - S(2,NN(4,i)) * S(3,i) + S(1,NN(4,i)) * S(3,i) - S(1,i) * S(3,NN(4,i))  &  ! Fourth neighbor term with DMI
                             )
                     ENDDO
+		    WRITE(*,*) 'u vectors are OK, ux=', u(1,1)
                    ! Initialize the Hamiltonian Hu to 0
 			Hu = 0.0d0
 
@@ -167,8 +168,8 @@ PROGRAM Metrolopis
 			
 			END DO
 
-
-
+		    WRITE(*,*) 'Hamiltonian dep on u Hu=', Hu
+	
                     DO K=1,Neql
                         DO L=1,Ns
                             !Potential energy term
@@ -248,8 +249,9 @@ PROGRAM Metrolopis
 				    Hup = Hup + 0.5d0 * kappa * (u(i, 1)**2 + u(i, 2)**2)
 		
 			     END DO	
-				
-	   
+			    WRITE(*,*) 'Hamiltonian dep on u(S') Hu'=', Hup
+ 	
+	   			
                             dE=dot_product(Sp(:)-S(:,M),H(:))    - (Hup-Hu)
 			    
                             IF(dE.le.0.0)THEN
@@ -287,7 +289,7 @@ PROGRAM Metrolopis
                   	    Chir1=0
  	    	                Chir2=0
  	  	                  Chirtot=0
-    
+    			
                         !---------------------------------------------------------------------------------------
                         ! Measurements -------------------------------------------------------------------------
                         !---------------------------------------------------------------------------------------
