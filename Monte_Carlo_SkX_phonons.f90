@@ -3,7 +3,7 @@
   !----------------------!
   
   INTEGER :: N,Ns,Nc,Neql,Nmes,Nt,Ntemp,Nhz,Ncopy,NcopySz
-  PARAMETER  (N=60,Nc=N*N,Ns=N*N,Neql=13*Ns,Nmes=4*Neql,Nt=5,Ntemp=60,Nhz=1,Ncopy=1,NcopySz=5,Nlines=100)
+  PARAMETER  (N=30,Nc=N*N,Ns=N*N,Neql=13*Ns,Nmes=4*Neql,Nt=5,Ntemp=60,Nhz=1,Ncopy=1,NcopySz=5,Nlines=100)
   INTEGER, allocatable :: NN1(:,:)
   ! S(j,M): global matrix.  j-th component of spin at the site M model 1
   REAL*8, allocatable :: S(:,:)   
@@ -28,10 +28,8 @@ PROGRAM Metrolopis
 
     REAL*8 :: Etot,Eav,E2av,C,Stot,S2av,Mag,Mav,M2av,ChiM,Chi,ChiAv,Chirtot,Chir1,Chir2
 
-!   Quiero ahora que J1 sea un vector de 4xNs con un numero random dJ (1 dJ para c/vecino). Lo mismo para DMI
-    REAL*8 :: Ja(Ns,4), Idumv(NLines)
-    REAL*8 :: DMIa(Ns,4)
-    REAL(8) :: Hu,Hup                           ! Hamiltonian term
+    REAL*8 :: Idumv(NLines)
+    REAL(8) :: Hu,Hup                           ! Hamiltonian terms
     REAL(8), DIMENSION(Ns, 2) :: u  ! u_i for each site, with 2 components (x, y)
 
 
@@ -134,39 +132,45 @@ PROGRAM Metrolopis
                              S(2,i) * S(3,NN(4,i)) - S(2,NN(4,i)) * S(3,i) + S(1,NN(4,i)) * S(3,i) - S(1,i) * S(3,NN(4,i))  &  ! Fourth neighbor term with DMI
                             )
                     ENDDO
-                    ! Hamiltonian contribution Hu
-                    Hu = 0.0d0  ! Initialize Hu to zero
+                   ! Initialize the Hamiltonian Hu to 0
+			Hu = 0.0d0
 
-                    ! Loop over all sites i
-                    DO i = 1, Ns
-                        ! Loop over neighbors of site i
-                        DO M = 1, 4
-                            j = NN(M, i)  ! Get the neighbor site j
+			! Loop over all sites
+			DO i = 1, Ns
+			
+			    ! First neighbor (NN1)
+			    j = NN(1, i)
+			    Hu = Hu + J * alpha * u(i, 1) * (S(1, i) * S(1, j) + S(2, i) * S(2, j) + S(3, i) * S(3, j)) &
+			             + beta * u(i, 1) * (D(1) * (S(2, i) * S(3, j) - S(3, i) * S(2, j)) + &
+			                                 D(2) * (S(3, i) * S(1, j) - S(1, i) * S(3, j)) + &
+			                                 D(3) * (S(1, i) * S(2, j) - S(2, i) * S(1, j)))
+			
+			    ! Second neighbor (NN2)
+			    j = NN(2, i)
+			    Hu = Hu + J * alpha * u(i, 2) * (S(1, i) * S(1, j) + S(2, i) * S(2, j) + S(3, i) * S(3, j)) &
+			             + beta * u(i, 2) * (D(1) * (S(2, i) * S(3, j) - S(3, i) * S(2, j)) + &
+			                                 D(2) * (S(3, i) * S(1, j) - S(1, i) * S(3, j)) + &
+			                                 D(3) * (S(1, i) * S(2, j) - S(2, i) * S(1, j)))
+			
+			    ! Third neighbor (NN3)
+			    j = NN(3, i)
+			    Hu = Hu - J * alpha * u(i, 1) * (S(1, i) * S(1, j) + S(2, i) * S(2, j) + S(3, i) * S(3, j)) &
+			             - beta * u(i, 1) * (D(1) * (S(2, i) * S(3, j) - S(3, i) * S(2, j)) + &
+			                                 D(2) * (S(3, i) * S(1, j) - S(1, i) * S(3, j)) + &
+			                                 D(3) * (S(1, i) * S(2, j) - S(2, i) * S(1, j)))
+			
+			    ! Fourth neighbor (NN4)
+			    j = NN(4, i)
+			    Hu = Hu - J * alpha * u(i, 2) * (S(1, i) * S(1, j) + S(2, i) * S(2, j) + S(3, i) * S(3, j)) &
+			             - beta * u(i, 2) * (D(1) * (S(2, i) * S(3, j) - S(3, i) * S(2, j)) + &
+			                                 D(2) * (S(3, i) * S(1, j) - S(1, i) * S(3, j)) + &
+			                                 D(3) * (S(1, i) * S(2, j) - S(2, i) * S(1, j)))
+			
+			    ! Elastic energy term
+			    Hu = Hu + 0.5d0 * kappa * (u(i, 1)**2 + u(i, 2)**2)
+			
+			END DO
 
-                            ! Compute u_i - u_j in the desired format
-                            ! First compute the differences in x and y components
-                            u_diff_x = u(i, 1) - u(j, 1)
-                            u_diff_y = u(i, 2) - u(j, 2)
-
-                            ! First term: J alpha e_ij . (u_i - u_j) (S_i . S_j)
-                            Hu = Hu + (-J * alpha / kappa) * (S(i, 1) * S(j, 1) + S(i, 2) * S(j, 2) + S(i, 3) * S(j, 3)) * &
-                                 (e(M, 1) * u_diff_x + e(M, 2) * u_diff_y)
-
-                            ! Second term: beta e_ij . (u_i - u_j) (D . (S_i x S_j))
-                            Hu = Hu + (-J * alpha * beta / kappa) * (S(i, 1) * S(j, 1) + S(i, 2) * S(j, 2) + S(i, 3) * S(j, 3)) * &
-                                 (D * ((S(i, 2) * S(j, 3) - S(i, 3) * S(j, 2)) + &
-                                       (S(i, 3) * S(j, 1) - S(i, 1) * S(j, 3)) + &
-                                       (S(i, 1) * S(j, 2) - S(i, 2) * S(j, 1)))) * &
-                                 (e(M, 1) * u_diff_x + e(M, 2) * u_diff_y)
-
-                            ! Third term: (D**2 * beta**2) part (similar to previous form)
-                            Hu = Hu + (-1.0d0 / 2.0d0 * kappa) * (D**2 * beta**2) * &
-                                 ((S(i, 2) * S(j, 3) - S(i, 3) * S(j, 2))**2 + &
-                                  (S(i, 1) * S(j, 3) - S(i, 3) * S(j, 1))**2 + &
-                                  (S(i, 1) * S(j, 2) - S(i, 2) * S(j, 1))**2)
-
-                        END DO
-                     END DO
 
 
                     DO K=1,Neql
